@@ -1,4 +1,3 @@
-// src/main/java/com/Shubham/carDealership/config/SecurityConfig.java
 package com.Shubham.carDealership.config;
 
 import com.Shubham.carDealership.security.JwtFilter;
@@ -18,6 +17,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -26,8 +26,8 @@ public class SecurityConfig {
     @Autowired
     private JwtFilter jwtFilter;
 
-    @Value("${cors.allowed.origins:https://ai-car-dealership-frontend.onrender.com,http://localhost:5173,http://localhost:3000}")
-    private String[] allowedOrigins;
+    @Value("${cors.allowed.origins:https://bhavishya-frontend.onrender.com,http://localhost:5173,http://localhost:3000}")
+    private String allowedOriginsStr;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -37,13 +37,12 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/api/auth/**",
-                                "/api/cars/all",
-                                "/api/cars/search",
-                                "/api/cars/**",
+                                "/api/oil/products",
+                                "/api/oil/products/**",
+                                "/api/oil/enquiry",
+                                "/api/oil/orders",
                                 "/api/ai-assistant/chat",
                                 "/ws/**",
-                                "/api/car-recognition/**",
-                                "/api/recognize/**",
                                 "/health",
                                 "/actuator/health",
                                 "/api/health"
@@ -61,7 +60,8 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList(allowedOrigins));
+        List<String> origins = Arrays.asList(allowedOriginsStr.split(","));
+        configuration.setAllowedOrigins(origins);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setExposedHeaders(Arrays.asList("Authorization", "Content-Type"));

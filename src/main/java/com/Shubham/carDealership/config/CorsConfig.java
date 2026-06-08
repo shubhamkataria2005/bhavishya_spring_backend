@@ -1,4 +1,3 @@
-// src/main/java/com/Shubham/carDealership/config/CorsConfig.java
 package com.Shubham.carDealership.config;
 
 import org.springframework.context.annotation.Configuration;
@@ -14,7 +13,7 @@ public class CorsConfig implements WebMvcConfigurer {
                 .allowedOrigins(
                         "http://localhost:5173",
                         "http://localhost:3000",
-                        "https://ai-car-dealership-frontend.onrender.com"
+                        "https://bhavishya-frontend.onrender.com"
                 )
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
                 .allowedHeaders("*")

@@ -1,6 +1,8 @@
 package com.Shubham.carDealership.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.Shubham.carDealership.model.OilProduct;
+import com.Shubham.carDealership.repository.OilProductRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -20,20 +22,16 @@ public class OpenAIService {
     private AIRuleService aiRuleService;
 
     @Autowired
-    private AIDatabaseQueryService dbQueryService;
-
-    @Autowired
-    private RAGService ragService;
+    private OilProductRepository productRepository;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private boolean available = false;
 
     @PostConstruct
     public void init() {
-        if (apiKey != null && !apiKey.isEmpty() && !apiKey.equals("your-openai-api-key-here")) {
+        if (apiKey != null && !apiKey.isEmpty()) {
             available = true;
-            dbQueryService.setOpenAIService(this);
-            System.out.println("✅ OpenAI Service initialized (GPT-4o-mini)");
+            System.out.println("✅ OpenAI Service initialized (GPT-4o-mini) for Bhavishya Oil");
         } else {
             System.out.println("⚠️ OpenAI API key not configured.");
         }
@@ -47,28 +45,38 @@ public class OpenAIService {
         String custom = aiRuleService.getCustomResponse(userMessage);
         if (custom != null) return custom;
 
-        // 3. RAG — semantic search over inventory (TRUE RAG)
-        if (ragService.isAvailable()) {
-            String ragAnswer = ragService.answer(userMessage);
-            if (ragAnswer != null && !ragAnswer.isEmpty()) return ragAnswer;
-        }
-
-        // 4. Text-to-SQL fallback
-        String sqlAnswer = dbQueryService.handleNaturalLanguageQuery(userMessage);
-        if (sqlAnswer != null && !sqlAnswer.contains("not initialized")) return sqlAnswer;
-
-        // 5. General GPT fallback
+        // 3. GPT with live product context
         if (available) {
-            String r = callChat("You are a helpful car dealership assistant for Shubham's Car Dealership, Auckland NZ. Answer concisely under 100 words, car topics only.", userMessage, 150, 0.7);
-            if (r != null) return r;
+            String context = buildProductContext();
+            String systemPrompt = "You are a helpful customer service assistant for Bhavishya Kachi Ghani Mustard Oil. " +
+                    "A premium pure mustard oil brand by Surender Kala & Sons Pvt. Ltd., Sonipat, Haryana, India. " +
+                    "Answer questions about products, prices, health benefits, cooking uses, certifications and distribution. " +
+                    "Be friendly and professional. Keep answers under 150 words. Use Rs. for prices. " +
+                    "If asked about prices, use the LIVE PRICES provided in context.";
+
+            String userPrompt = "LIVE PRODUCT PRICES:\n" + context + "\n\nCustomer question: " + userMessage;
+
+            String response = callChat(systemPrompt, userPrompt, 300, 0.7);
+            if (response != null) return response;
         }
 
-        return "I'm here to help! Ask me about our cars, prices, test drives, or trade-ins. 🚗";
+        return "Namaste! 🙏 I can help you with information about Bhavishya Kachi Ghani Mustard Oil. " +
+                "Please call us at +91-9653550600 or email contact@bhavishyaoil.com for more details.";
     }
 
-    public String generateCompletion(String prompt) {
-        if (!available) return null;
-        return callChat("You are a SQL expert. Return ONLY a valid SQL query — no explanation, no markdown.", prompt, 300, 0.1);
+    private String buildProductContext() {
+        try {
+            List<OilProduct> products = productRepository.findAll();
+            StringBuilder sb = new StringBuilder();
+            for (OilProduct p : products) {
+                sb.append(String.format("- %s (Size: %s, Weight: %s): Rs. %s | %s | %s\n",
+                        p.getName(), p.getSize(), p.getWeight(),
+                        p.getPrice().toPlainString(), p.getUsp(), p.getCategory().toUpperCase()));
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            return "Products available: 200ml, 500ml, 1 Litre, 2 Litre, 15 Litre, 15 Kg Tin";
+        }
     }
 
     private String callChat(String system, String user, int maxTokens, double temp) {
@@ -79,9 +87,10 @@ public class OpenAIService {
             body.put("temperature", temp);
             body.put("messages", List.of(
                     Map.of("role", "system", "content", system),
-                    Map.of("role", "user",   "content", user)
+                    Map.of("role", "user", "content", user)
             ));
             String json = objectMapper.writeValueAsString(body);
+
             URL url = new URL("https://api.openai.com/v1/chat/completions");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
@@ -90,22 +99,27 @@ public class OpenAIService {
             conn.setDoOutput(true);
             conn.setConnectTimeout(15000);
             conn.setReadTimeout(30000);
-            try (OutputStream os = conn.getOutputStream()) { os.write(json.getBytes("utf-8")); }
+
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(json.getBytes("utf-8"));
+            }
+
             if (conn.getResponseCode() == 200) {
                 BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"));
-                StringBuilder sb = new StringBuilder(); String line;
-                while ((line = br.readLine()) != null) sb.append(line); br.close();
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                br.close();
+
                 Map<String, Object> result = objectMapper.readValue(sb.toString(), Map.class);
                 List<Map<String, Object>> choices = (List<Map<String, Object>>) result.get("choices");
-                return ((String)((Map<String,Object>)choices.get(0).get("message")).get("content")).trim();
+                return ((String) ((Map<String, Object>) choices.get(0).get("message")).get("content")).trim();
             }
-        } catch (Exception e) { System.err.println("❌ OpenAI: " + e.getMessage()); }
+        } catch (Exception e) {
+            System.err.println("❌ OpenAI error: " + e.getMessage());
+        }
         return null;
     }
 
-    public boolean isOpenAIAvailable() { return available; }
-
-    public Map<String, Object> getOpenAIStatus() {
-        return Map.of("serviceAvailable", available, "ragAvailable", ragService.isAvailable(), "model", "gpt-4o-mini");
-    }
+    public boolean isAvailable() { return available; }
 }

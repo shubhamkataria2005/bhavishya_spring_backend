@@ -7,6 +7,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class CarDealershipApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(CarDealershipApplication.class, args);
-		System.out.println("🚗 Car Dealership Backend Started on http://localhost:5000");
+		System.out.println("🫒 Bhavishya Oil Backend Started on http://localhost:8080");
 	}
 }

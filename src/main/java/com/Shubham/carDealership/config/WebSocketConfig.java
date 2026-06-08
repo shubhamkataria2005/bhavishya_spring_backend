@@ -1,4 +1,3 @@
-// src/main/java/com/Shubham/carDealership/config/WebSocketConfig.java
 package com.Shubham.carDealership.config;
 
 import org.springframework.context.annotation.Configuration;
@@ -24,7 +23,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 .setAllowedOrigins(
                         "http://localhost:5173",
                         "http://localhost:3000",
-                        "https://ai-car-dealership-frontend.onrender.com"
+                        "https://bhavishya-frontend.onrender.com"
                 )
                 .withSockJS();
     }
